@@ -10,5 +10,11 @@
 # phpmyadmin:latest
 # php:8.4-fpm-alpine
 # php:8.3-fpm-alpine
-composer/composer:2.8
-node:20-slim
+# composer/composer:2.8
+# node:20-slim
+node:22-slim
+node:22-alpine
+node:20-alpine
+composer:2.8
+rabbitmq:4.0
+rabbitmq:4.1
