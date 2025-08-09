@@ -1,0 +1,70 @@
+# 文件路径：.github/workflows/sync_images.yml
+name: Sync Docker Images to Aliyun
+
+on:
+  push:
+    paths:
+      - 'images.txt'  # 当 images.txt 变更时自动触发
+  workflow_dispatch:  # 支持手动触发
+  schedule:
+    - cron: '0 2 * * *'  # UTC时间每天2AM运行（北京时间10AM）
+
+jobs:
+  sync-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+
+      - name: Login to Aliyun Container Registry
+        run: |
+          skopeo login \
+            --username "${{ secrets.ALIYUN_USER }}" \
+            --password "${{ secrets.ALIYUN_PASSWORD }}" \
+            ${{ secrets.ALIYUN_REGISTRY }}
+
+      - name: Sync Images
+        run: |
+          set -euo pipefail
+          while IFS= read -r image; do
+            # 跳过注释行和空行
+            [[ "$image" =~ ^#|^$ ]] && continue
+            
+            echo "Syncing $image ..."
+
+            # 解析镜像引用：repo 和 tag（默认 latest）
+            ref="$image"
+            if [[ "$ref" == *:* ]]; then
+              repo_no_tag="${ref%%:*}"
+              tag="${ref##*:}"
+            else
+              repo_no_tag="$ref"
+              tag="latest"
+            fi
+
+            # 如果未显式包含 registry（如 quay.io/ 或 ghcr.io/），默认从 docker.io 拉取
+            if [[ "$repo_no_tag" == *"."*"/"* ]]; then
+              src_ref="docker://$repo_no_tag:$tag"
+            else
+              src_ref="docker://docker.io/$repo_no_tag:$tag"
+            fi
+
+            # ACR 仓库名不支持多级路径：将 / 扁平化为 -，避免冲突
+            flat_repo="${repo_no_tag//\//-}"
+
+            # 重试 3 次以增强稳定性；默认启用 TLS 校验
+            for attempt in 1 2 3; do
+              if skopeo copy --all \
+                "$src_ref" \
+                "docker://${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/$flat_repo:$tag"; then
+                break
+              fi
+              echo "Retry $attempt/3 failed, retrying in 5s..."
+              sleep 5
+            done
+          done < images.txt
