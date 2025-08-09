@@ -1,4 +1,12 @@
 # 生产环境常用镜像示例
 nginx:1.25.3              # 默认 latest 标签
-redis:7.2-alpine           # 指定版本
-mysql/mysql-server:8.0.32  # 官方认证镜像
+nginx:1.28.0-alpine
+redis:7.4.5-alpine         # 指定版本
+redislabs/redisinsight:2.70
+mysql:8.0  # 官方认证镜像
+mysql:8.4
+adminer:latest
+wordpress:latest
+phpmyadmin:latest
+php:8.4-fpm-alpine
+php:8.3-fpm-alpine

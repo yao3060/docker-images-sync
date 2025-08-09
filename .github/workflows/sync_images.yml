@@ -34,11 +34,18 @@ jobs:
           while IFS= read -r image; do
             # 跳过注释行和空行
             [[ "$image" =~ ^#|^$ ]] && continue
-            
-            echo "Syncing $image ..."
+
+            # 去除 Windows 回车符、内联注释与首尾空白
+            raw="$image"
+            raw="${raw//$'\r'/}"                # 删除 CR 字符
+            raw="${raw%%#*}"                    # 去除内联注释（# 及其后面）
+            # 修剪首尾空白（使用 sed 以兼容性更好）
+            ref="$(echo -n "$raw" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+            [[ -z "$ref" ]] && continue         # 注释或空行
+
+            echo "Syncing $ref ..."
 
             # 解析镜像引用：repo 和 tag（默认 latest）
-            ref="$image"
             if [[ "$ref" == *:* ]]; then
               repo_no_tag="${ref%%:*}"
               tag="${ref##*:}"
